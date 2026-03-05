@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { SC } from "./data/scramble-data.js";
 import { QM } from "./data/quotes-data.js";
 import { KD } from "./data/kindred-data.js";
@@ -27,6 +27,18 @@ const dLbl=km=>km<50?{t:"🔥 Scorching!",c:"#D4929B"}:km<200?{t:"🌡️ Very w
 const D=(m,mode,n)=>{const th=todayTheme().id;const pool=m[th];if(!pool)return[];const data=pool[mode]||pool.e;if(Array.isArray(data)){const shuffled=seededShuf(data,dayKey());return n?shuffled.slice(0,n):shuffled;}if(data&&data.g)return{...data,g:seededShuf(data.g,dayKey())};if(data&&data.answer)return data;return data;};
 const CSS=`@keyframes pulse{0%,100%{transform:translate(-50%,-50%) scale(1);opacity:.3}50%{transform:translate(-50%,-50%) scale(1.3);opacity:.1}}@keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}@keyframes confettiFall{0%{transform:translateY(-10vh) rotate(0deg);opacity:1}100%{transform:translateY(110vh) rotate(720deg);opacity:0}}@keyframes sparkle{0%,100%{opacity:.3;transform:scale(.8)}50%{opacity:1;transform:scale(1.2)}}`;
 const F="DM Sans,sans-serif",S="DM Serif Display,serif";
+
+// ══════ STORAGE ══════
+const LS={
+  get(k){try{return JSON.parse(localStorage.getItem("inkworm_"+k));}catch{return null;}},
+  set(k,v){try{localStorage.setItem("inkworm_"+k,JSON.stringify(v));}catch{}},
+  del(k){try{localStorage.removeItem("inkworm_"+k);}catch{}},
+};
+const SS={
+  get(k){try{return sessionStorage.getItem("inkworm_"+k);}catch{return null;}},
+  set(k,v){try{sessionStorage.setItem("inkworm_"+k,v);}catch{}},
+};
+
 
 // Elegant result dots — ink dots for correct, hollow for missed
 const Dots=({res})=><div style={{display:"flex",gap:6,justifyContent:"center"}}>{res.map((r,j)=><div key={j} style={{width:10,height:10,borderRadius:"50%",background:r?"#1F1D2B":"transparent",border:r?"2px solid #1F1D2B":"2px solid #C2BDCF",transition:"all .3s"}}/>)}</div>;
@@ -61,14 +73,15 @@ const HowTo=({game,onStart})=>{const g=GM.find(m=>m.id===game);if(!g)return null
 function G1({onDone,onBack,mode}){
   const pzBase=useMemo(()=>D(SC,mode,5),[mode]);
   const[i,sI]=useState(0);const[inp,sInp]=useState("");const[rev,sRev]=useState(false);
-  const[res,sRes]=useState([]);const[hintLv,sHL]=useState(mode==="e"?2:0);const[shk,sSh]=useState(false);
+  const[res,sRes]=useState([]);const[hintLv,sHL]=useState(0);const[shk,sSh]=useState(false);
   const[curScram,setCurScram]=useState(()=>scram(pzBase[0].a));
   const p=pzBase[i];const done=i>=pzBase.length;
   const cc={author:"#B8A9D4",work:"#9DB89A",character:"#BDA36B"};
   const doShuffle=()=>{setCurScram(scram(p.a));};
+  const useHint=()=>{if(mode==="e")sHL(2);else sHL(h=>Math.min(h+1,2));};
   const adv=()=>{
     if(i===pzBase.length-1)sI(pzBase.length);
-    else{const ni=i+1;sI(ni);sInp("");sRev(false);sHL(mode==="e"?2:0);setCurScram(scram(pzBase[ni].a));}
+    else{const ni=i+1;sI(ni);sInp("");sRev(false);sHL(0);setCurScram(scram(pzBase[ni].a));}
   };
   const sub=()=>{if(!inp.trim())return;if(inp.trim().toUpperCase()===p.a){sRev(true);sRes(r=>[...r,true]);setTimeout(adv,1500);}else{sSh(true);setTimeout(()=>sSh(false),500);}};
   const reveal=()=>{sRev(true);sHL(2);sRes(r=>[...r,false]);setTimeout(adv,2000);};
@@ -99,7 +112,7 @@ function G1({onDone,onBack,mode}){
         <input type="text" value={inp} onChange={e=>sInp(e.target.value)} onKeyDown={e=>e.key==="Enter"&&sub()} placeholder="Type your answer..." autoFocus style={{width:"100%",padding:"14px 18px",borderRadius:14,border:"1.5px solid #E8E0F5",background:"white",fontSize:16,fontFamily:F,color:"#1F1D2B",outline:"none"}}/>
         <button onClick={sub} style={{width:"100%",marginTop:14,padding:14,borderRadius:14,border:"none",background:inp.trim()?"#1F1D2B":"#E8E0F5",color:inp.trim()?"white":"#C2BDCF",fontWeight:700,fontSize:15,cursor:inp.trim()?"pointer":"default",fontFamily:F}}>Check</button>
         <div style={{display:"flex",gap:10,marginTop:10,justifyContent:"center"}}>
-          {hintLv<2&&<button onClick={()=>sHL(h=>h+1)} style={{background:"none",border:"none",fontSize:13,color:"#B8A9D4",cursor:"pointer",padding:"6px 12px",fontFamily:F}}>{hintLv===0?"💡 Hint":"🔎 Easier hint"}</button>}
+          {hintLv<2&&<button onClick={useHint} style={{background:"none",border:"none",fontSize:13,color:"#B8A9D4",cursor:"pointer",padding:"6px 12px",fontFamily:F}}>{hintLv===0?(mode==="e"?"💡 Show hints":"💡 Hint"):"🔎 Easier hint"}</button>}
           <button onClick={reveal} style={{background:"none",border:"none",fontSize:13,color:"#D4929B",cursor:"pointer",padding:"6px 12px",fontFamily:F}}>👁 Reveal</button>
           <button onClick={()=>{sRes(r=>[...r,false]);adv();}} style={{background:"none",border:"none",fontSize:13,color:"#C2BDCF",cursor:"pointer",padding:"6px 12px",fontFamily:F}}>Skip →</button>
         </div>
@@ -163,9 +176,10 @@ function G5({onDone,onBack,mode}){
 
 // ══════ HOME ══════
 // ══════ MAP ══════
-function Map({name,mode,onModeChange,onPlay,gs}){
-  const pr=useMemo(()=>({d:GM.filter(g=>gs[g.id]?.status==="complete").length,t:GM.length}),[gs]);
-  const ai=GM.findIndex(g=>gs[g.id]?.status!=="complete");
+function Map({name,mode,midQuest,gs,onModeChange,onPlay}){
+  const mgs=gs[mode]||{};const otherMode=mode==="e"?"a":"e";const otherGs=gs[otherMode]||{};const otherDone=GM.filter(g=>otherGs[g.id]?.status==="complete").length===GM.length;
+const pr=useMemo(()=>({d:GM.filter(g=>mgs[g.id]?.status==="complete").length,t:GM.length}),[mgs]);
+  const ai=GM.findIndex(g=>mgs[g.id]?.status!=="complete");
   const[toast,setToast]=useState(null);
   const[showScore,setShowScore]=useState(false);
   const tt=useMemo(()=>timeTheme(),[]);
@@ -175,7 +189,7 @@ function Map({name,mode,onModeChange,onPlay,gs}){
   let pD=`M ${pts[0].x} ${pts[0].y}`;for(let i=1;i<pts.length;i++){const p=pts[i-1],c=pts[i],cy=(p.y+c.y)/2;pD+=` C ${p.x} ${cy}, ${c.x} ${cy}, ${c.x} ${c.y}`;}
   const tr=[{x:85,y:30,s:1},{x:10,y:110,s:.7},{x:90,y:200,s:.9},{x:5,y:320,s:.6},{x:92,y:400,s:.8},{x:15,y:480,s:.7}];
   const tapNode=(gm,i)=>{
-    const ic=gs[gm.id]?.status==="complete",ia=i===ai,il=!ia&&!ic;
+    const ic=mgs[gm.id]?.status==="complete",ia=i===ai,il=!ia&&!ic;
     if(il){const prev=GM[i-1];setToast(`Complete ${prev?.name||"previous game"} first`);setTimeout(()=>setToast(null),2000);return;}
     onPlay(gm.id);
   };
@@ -200,11 +214,13 @@ function Map({name,mode,onModeChange,onPlay,gs}){
       {/* Mode toggle */}
       <div style={{display:"flex",justifyContent:"center",marginBottom:10}}>
         <div style={{display:"flex",background:"white",borderRadius:20,padding:2,boxShadow:"0 1px 4px rgba(0,0,0,.03)"}}>
-          {[{k:"e",l:"📖 Early"},{k:"a",l:"📚 Advanced"}].map(d=>
-            <button key={d.k} onClick={()=>onModeChange(d.k)} style={{padding:"5px 14px",borderRadius:18,border:"none",fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:F,transition:"all .2s",background:mode===d.k?"#1F1D2B":"transparent",color:mode===d.k?"white":"#8E89A3"}}>{d.l}</button>
+          {[{k:"e",l:"📖 Early"},{k:"a",l:"📚 Advanced"}].map(d=>{
+            const disabled=midQuest&&d.k!==mode;
+            return <button key={d.k} onClick={()=>!disabled&&onModeChange(d.k)} style={{padding:"5px 14px",borderRadius:18,border:"none",fontSize:11,fontWeight:600,cursor:disabled?"default":"pointer",fontFamily:F,transition:"all .2s",background:mode===d.k?"#1F1D2B":"transparent",color:mode===d.k?"white":disabled?"#D4D0E0":"#8E89A3",opacity:disabled?.5:1}}>{d.l}</button>;}
           )}
         </div>
       </div>
+      {midQuest&&<div style={{textAlign:"center",fontSize:10,color:"#C2BDCF",marginTop:2,marginBottom:4}}>Complete your quest to switch modes</div>}
       <div style={{textAlign:"center",marginBottom:12,padding:"0 16px"}}>
         <div style={{fontSize:12,color:"#8E89A3",lineHeight:1.5,fontStyle:"italic"}}>"{q.text}"</div>
         <div style={{fontSize:10,color:"#C2BDCF",marginTop:4,fontWeight:500}}>— {q.author}</div>
@@ -220,7 +236,7 @@ function Map({name,mode,onModeChange,onPlay,gs}){
         <div style={{fontFamily:S,fontSize:22,color:"#1F1D2B",marginBottom:4}}>Quest Complete!</div>
         <div style={{fontSize:13,color:"#8E89A3",marginBottom:20}}>Here's how you did today</div>
         <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:20}}>
-          {GM.map(gm=>{const s=gs[gm.id]?.score||0;return <div key={gm.id} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 12px",background:"white",borderRadius:10,border:"1px solid rgba(0,0,0,.04)"}}>
+          {GM.map(gm=>{const s=mgs[gm.id]?.score||0;return <div key={gm.id} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 12px",background:"white",borderRadius:10,border:"1px solid rgba(0,0,0,.04)"}}>
             <span style={{fontSize:18}}>{gm.icon}</span>
             <span style={{flex:1,textAlign:"left",fontSize:13,fontWeight:600,color:"#1F1D2B"}}>{gm.name}</span>
             <span style={{fontSize:12,letterSpacing:1}}>{Array.from({length:5}).map((_,i)=><span key={i} style={{color:i<s?"#BDA36B":"#E8E0F5"}}>●</span>)}</span>
@@ -232,8 +248,14 @@ function Map({name,mode,onModeChange,onPlay,gs}){
           <div style={{fontSize:13,color:"#4A4660",lineHeight:1.5,fontStyle:"italic"}}>"{AFF[dayKey()%AFF.length].text}"</div>
           <div style={{fontSize:11,color:"#8E89A3",marginTop:6}}>— {AFF[dayKey()%AFF.length].source}</div>
         </div>
-        <div style={{fontSize:13,color:"#9DB89A",fontWeight:600,marginBottom:16}}>🌅 Come back tomorrow for a fresh quest!</div>
-        <button onClick={()=>setShowScore(false)} style={{width:"100%",padding:"14px",borderRadius:14,border:"none",background:"#1F1D2B",color:"white",fontWeight:700,fontSize:15,cursor:"pointer",fontFamily:F}}>Done</button>
+        {!otherDone?<>
+          <div style={{fontSize:13,color:"#9DB89A",fontWeight:600,marginBottom:12}}>{mode==="e"?"🚀 Ready for a challenge?":"🌿 Want a relaxed round?"}</div>
+          <button onClick={()=>{setShowScore(false);onModeChange(otherMode);}} style={{width:"100%",padding:"14px",borderRadius:14,border:"none",background:"#1F1D2B",color:"white",fontWeight:700,fontSize:15,cursor:"pointer",fontFamily:F,marginBottom:8}}>Try {mode==="e"?"Advanced":"Early"} Reader →</button>
+          <button onClick={()=>setShowScore(false)} style={{background:"none",border:"none",fontSize:13,color:"#8E89A3",cursor:"pointer",fontFamily:F,padding:8}}>Maybe later</button>
+        </>:<>
+          <div style={{fontSize:13,color:"#9DB89A",fontWeight:600,marginBottom:16}}>🌅 You've conquered both quests! Come back tomorrow for a fresh theme.</div>
+          <button onClick={()=>setShowScore(false)} style={{width:"100%",padding:"14px",borderRadius:14,border:"none",background:"#1F1D2B",color:"white",fontWeight:700,fontSize:15,cursor:"pointer",fontFamily:F}}>Done</button>
+        </>}
       </div>
     </div>}
 
@@ -246,7 +268,7 @@ function Map({name,mode,onModeChange,onPlay,gs}){
         {pr.d>0&&(()=>{const e=Math.min(pr.d,pts.length-1);let d=`M ${pts[0].x} ${pts[0].y}`;for(let i=1;i<=e;i++){const p=pts[i-1],c=pts[i],cy=(p.y+c.y)/2;d+=` C ${p.x} ${cy}, ${c.x} ${cy}, ${c.x} ${c.y}`;}return <path d={d} fill="none" stroke="#9DB89A" strokeWidth="6" strokeLinecap="round" opacity=".7"/>;})()}
       </svg>
 
-      {GM.map((gm,i)=>{const ic=gs[gm.id]?.status==="complete",ia=i===ai,il=!ia&&!ic,pos=pts[i],sz=ia?64:52;return <div key={gm.id} onClick={()=>tapNode(gm,i)} style={{position:"absolute",left:`${(pos.x/380)*100}%`,top:pos.y,transform:"translate(-50%,-50%)",zIndex:ia?5:3,cursor:"pointer"}}>
+      {GM.map((gm,i)=>{const ic=mgs[gm.id]?.status==="complete",ia=i===ai,il=!ia&&!ic,pos=pts[i],sz=ia?64:52;return <div key={gm.id} onClick={()=>tapNode(gm,i)} style={{position:"absolute",left:`${(pos.x/380)*100}%`,top:pos.y,transform:"translate(-50%,-50%)",zIndex:ia?5:3,cursor:"pointer"}}>
         {ia&&<div style={{position:"absolute",top:"50%",left:"50%",width:sz+24,height:sz+24,transform:"translate(-50%,-50%)",borderRadius:"50%",border:`2px solid ${gm.c}`,pointerEvents:"none",animation:"pulse 2s ease-in-out infinite"}}/>}
         <div style={{width:sz,height:sz,borderRadius:"50%",background:ic?"#1F1D2B":ia?gm.c:"#E0D5C4",display:"flex",alignItems:"center",justifyContent:"center",fontSize:ia?28:24,boxShadow:ia?`0 4px 20px ${gm.c}44,0 2px 8px rgba(0,0,0,.1)`:ic?"0 4px 16px rgba(31,29,43,.2)":"0 2px 8px rgba(0,0,0,.08)",border:ic?"3px solid #4A4660":"3px solid "+(ia?"white":"rgba(255,255,255,.6)"),opacity:il?.5:1,transition:"all .3s"}}>
           {ic?<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M5 13l4 4L19 7"/></svg>:<span style={{pointerEvents:"none"}}>{gm.icon}</span>}
@@ -351,20 +373,72 @@ function Welcome({onSubmit}){
   </div>;
 }
 
+
+// ══════ WELCOME BACK SPLASH ══════
+function Splash({name,onDone}){
+  const tt=useMemo(()=>timeTheme(),[]);
+  const th=useMemo(()=>todayTheme(),[]);
+  const[fade,setFade]=useState(false);
+  const dismiss=()=>{if(!fade){setFade(true);setTimeout(onDone,400);}};
+  useEffect(()=>{const t=setTimeout(()=>{setFade(true);setTimeout(onDone,400);},2000);return()=>clearTimeout(t);},[]);
+  return <div onClick={dismiss} style={{position:"fixed",inset:0,zIndex:200,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,background:tt.bg,fontFamily:F,cursor:"pointer",opacity:fade?0:1,transition:"opacity .4s ease-out"}}>
+    <div style={{fontSize:28,fontWeight:700,color:"#1F1D2B",marginBottom:12,animation:"fadeUp .5s ease-out"}}>{tt.greet}, <span style={{background:"linear-gradient(135deg,#B8A9D4,#D4929B)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>{name}</span></div>
+    <div style={{display:"inline-flex",alignItems:"center",padding:"8px 20px",borderRadius:24,background:"white",boxShadow:"0 2px 12px rgba(0,0,0,.06)",marginBottom:10,animation:"fadeUp .5s .15s ease-out both"}}>
+      <span style={{fontSize:20,marginRight:8}}>{th.emoji}</span>
+      <span style={{fontSize:15,fontWeight:700,color:"#1F1D2B"}}>{th.name}</span>
+    </div>
+    <div style={{fontSize:14,color:"#4A4660",fontStyle:"italic",textAlign:"center",maxWidth:300,lineHeight:1.5,animation:"fadeUp .5s .3s ease-out both"}}>{th.preview}</div>
+  </div>;
+}
+
 export default function App(){
-  const[name,sName]=useState(null);
-  const[mode,sMode]=useState("e");
-  const[gs,sGs]=useState({});const[ag,sAg]=useState(null);
+  // ── Restore from localStorage ──
+  const stored=useMemo(()=>{
+    const n=LS.get("name"),m=LS.get("mode")||"e",d=LS.get("day"),ge=LS.get("gs_e")||{},ga=LS.get("gs_a")||{};
+    const today=dayKey();
+    if(d!==today){LS.set("day",today);LS.set("gs_e",{});LS.set("gs_a",{});return{name:n,mode:m,gs:{e:{},a:{}}};}
+    return{name:n,mode:m,gs:{e:ge,a:ga}};
+  },[]);
+
+  const[name,sName]=useState(stored.name);
+  const[mode,sMode]=useState(stored.mode);
+  const[gs,sGs]=useState(stored.gs);
+  const[ag,sAg]=useState(null);
   const[showHow,setShowHow]=useState(null);
+  const[showSplash,setSplash]=useState(!!stored.name&&!SS.get("splashed"));
+
+  // ── Current mode's game state ──
+  const mgs=gs[mode]||{};
+  const completedCount=GM.filter(g=>mgs[g.id]?.status==="complete").length;
+  const midQuest=completedCount>0&&completedCount<GM.length;
+
+  // ── Persist helpers ──
+  const saveGs=(newGs)=>{sGs(newGs);LS.set("gs_e",newGs.e||{});LS.set("gs_a",newGs.a||{});};
+  const setMode=(m)=>{sMode(m);LS.set("mode",m);};
+
   const play=id=>{setShowHow(id);};
   const startGame=()=>{sAg(showHow);setShowHow(null);};
-  const done=(id,score)=>{sGs(p=>({...p,[id]:{status:"complete",score:score||0}}));sAg(null);};
+  const done=(id,score)=>{
+    const newMgs={...mgs,[id]:{status:"complete",score:score||0}};
+    const newGs={...gs,[mode]:newMgs};
+    saveGs(newGs);sAg(null);
+  };
   const back=()=>{sAg(null);};
-  if(!name)return <Welcome onSubmit={(n,m)=>{sName(n);sMode(m);}}/>;
+  const changeMode=(m)=>{if(m===mode)return;setMode(m);};
+
+  // ── Splash dismiss ──
+  const dismissSplash=()=>{setSplash(false);SS.set("splashed","1");};
+
+  // ── Welcome submit ──
+  const onWelcome=(n,m)=>{sName(n);setMode(m);LS.set("name",n);LS.set("day",dayKey());};
+
+  // ── Render ──
+  if(!name)return <Welcome onSubmit={onWelcome}/>;
+  if(showSplash)return <Splash name={name} onDone={dismissSplash}/>;
   if(showHow)return <HowTo game={showHow} onStart={startGame}/>;
   if(ag==="scramble")return <G1 mode={mode} onDone={s=>done("scramble",s)} onBack={back}/>;
   if(ag==="quotes")return <G2 mode={mode} onDone={s=>done("quotes",s)} onBack={back}/>;
   if(ag==="kindred")return <G4 mode={mode} onDone={s=>done("kindred",s)} onBack={back}/>;
   if(ag==="wanderlust")return <G5 mode={mode} onDone={s=>done("wanderlust",s)} onBack={back}/>;
-  return <Map name={name} mode={mode} onModeChange={sMode} onPlay={play} gs={gs}/>;
+  return <Map name={name} mode={mode} midQuest={midQuest} gs={gs} onModeChange={changeMode} onPlay={play}/>;
 }
