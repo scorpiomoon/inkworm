@@ -1,0 +1,852 @@
+// ============================================
+// INKWORM PUZZLE BANK
+// 1 puzzle per genre × 2 difficulties = 10 puzzles
+// + 2 surprise puzzles
+// ============================================
+
+// Grid pattern helper: 0 = white, 1 = black
+// All grids use rotational symmetry (NYT-style)
+
+const GRID_A = [
+  [0,0,0,0,1,0,0,0,1,0,0,0,0,0,0],
+  [0,0,0,0,1,0,0,0,1,0,0,0,0,0,0],
+  [0,0,0,0,0,0,0,0,1,0,0,0,0,0,0],
+  [0,0,0,1,0,0,0,1,0,0,0,1,0,0,0],
+  [1,1,1,0,0,0,1,0,0,0,1,0,0,0,0],
+  [0,0,0,0,0,1,0,0,0,1,0,0,0,1,1],
+  [0,0,0,0,1,0,0,0,0,0,0,0,1,0,0],
+  [0,0,0,1,0,0,0,0,0,0,0,1,0,0,0],
+  [0,0,1,0,0,0,0,0,0,0,1,0,0,0,0],
+  [1,1,0,0,0,1,0,0,0,1,0,0,0,0,0],
+  [0,0,0,0,1,0,0,0,1,0,0,0,1,1,1],
+  [0,0,0,1,0,0,0,1,0,0,0,1,0,0,0],
+  [0,0,0,0,0,0,0,1,0,0,0,0,0,0,0],
+  [0,0,0,0,0,0,1,0,0,0,1,0,0,0,0],
+  [0,0,0,0,0,0,1,0,0,0,1,0,0,0,0],
+];
+
+const GRID_B = [
+  [0,0,0,0,0,1,0,0,0,1,0,0,0,0,0],
+  [0,0,0,0,0,1,0,0,0,1,0,0,0,0,0],
+  [0,0,0,0,0,1,0,0,0,0,0,0,0,0,0],
+  [0,0,0,1,0,0,0,0,1,0,0,0,1,0,0],
+  [0,0,0,0,1,0,0,1,0,0,0,1,0,0,0],
+  [1,1,0,0,0,0,1,0,0,0,1,0,0,1,1],
+  [0,0,0,0,0,1,0,0,0,1,0,0,0,0,0],
+  [0,0,0,1,0,0,0,0,0,0,0,1,0,0,0],
+  [0,0,0,0,0,1,0,0,0,1,0,0,0,0,0],
+  [1,1,0,0,1,0,0,0,1,0,0,0,0,1,1],
+  [0,0,0,1,0,0,0,1,0,0,1,0,0,0,0],
+  [0,0,1,0,0,0,1,0,0,0,0,1,0,0,0],
+  [0,0,0,0,0,0,0,0,0,1,0,0,0,0,0],
+  [0,0,0,0,0,1,0,0,0,1,0,0,0,0,0],
+  [0,0,0,0,0,1,0,0,0,1,0,0,0,0,0],
+];
+
+// Helper to generate numbered cells from grid
+export function numberGrid(grid) {
+  const size = grid.length;
+  const numbers = Array.from({ length: size }, () => Array(size).fill(0));
+  let num = 1;
+  for (let r = 0; r < size; r++) {
+    for (let c = 0; c < size; c++) {
+      if (grid[r][c] === 1) continue;
+      const needsAcross = (c === 0 || grid[r][c-1] === 1) && (c + 1 < size && grid[r][c+1] === 0);
+      const needsDown = (r === 0 || grid[r-1][c] === 1) && (r + 1 < size && grid[r+1][c] === 0);
+      if (needsAcross || needsDown) {
+        numbers[r][c] = num++;
+      }
+    }
+  }
+  return numbers;
+}
+
+// Helper to extract words from a grid + answers
+export function extractWords(grid, answers, numbers) {
+  const size = grid.length;
+  const across = [];
+  const down = [];
+
+  for (let r = 0; r < size; r++) {
+    for (let c = 0; c < size; c++) {
+      if (numbers[r][c] === 0) continue;
+      // Check across
+      if ((c === 0 || grid[r][c-1] === 1) && (c + 1 < size && grid[r][c+1] === 0)) {
+        let word = '';
+        let cc = c;
+        while (cc < size && grid[r][cc] === 0) { word += answers[r][cc]; cc++; }
+        across.push({ num: numbers[r][c], row: r, col: c, answer: word });
+      }
+      // Check down
+      if ((r === 0 || grid[r-1][c] === 1) && (r + 1 < size && grid[r+1][c] === 0)) {
+        let word = '';
+        let rr = r;
+        while (rr < size && grid[rr][c] === 0) { word += answers[rr][c]; rr++; }
+        down.push({ num: numbers[r][c], row: r, col: c, answer: word });
+      }
+    }
+  }
+  return { across, down };
+}
+
+// ============================================
+// CLASSIC LITERATURE
+// ============================================
+const classicBeginner = {
+  id: 'classic-beginner-1',
+  genre: 'Classic Literature',
+  difficulty: 'beginner',
+  grid: GRID_A,
+  answers: [
+    ['P','R','I','D','#','A','U','S','#','B','R','O','N','T','E'],
+    ['L','O','M','E','#','N','I','L','#','E','O','W','U','L','F'],
+    ['O','M','A','R','K','T','W','A','I','N','V','E','L','S','E'],
+    ['T','E','D','#','I','N','K','#','H','A','M','#','L','E','E'],
+    ['#','#','#','M','O','B','#','D','E','N','#','M','I','N','D'],
+    ['S','C','R','O','O','#','G','A','T','#','T','O','L','D','#'],
+    ['T','H','E','M','#','J','A','N','E','A','U','S','T','E','N'],
+    ['E','A','R','#','D','U','M','A','S','#','D','#','E','V','E'],
+    ['R','N','#','H','E','R','O','#','S','A','G','A','#','I','N'],
+    ['#','#','O','L','I','#','O','R','E','#','E','R','A','S','E'],
+    ['M','O','B','Y','#','F','L','A','#','P','O','E','#','#','#'],
+    ['E','D','E','#','D','I','C','#','E','L','I','T','#','A','R'],
+    ['M','O','I','R','E','C','K','#','A','L','C','O','T','T','S'],
+    ['O','R','A','N','G','E','#','N','O','V','#','N','O','O','N'],
+    ['S','E','L','L','S','S','#','O','R','E','#','S','E','N','D'],
+  ],
+  clues: {
+    across: [
+      { num: 1, row: 0, col: 0, text: "___ and Prejudice (Austen novel)" },
+      { num: 5, row: 0, col: 5, text: "Jane ___, author of Emma and Persuasion" },
+      { num: 8, row: 0, col: 9, text: "Charlotte or Emily, literary sisters" },
+      { num: 11, row: 1, col: 0, text: "City in Italy, or a wanderer" },
+      { num: 13, row: 1, col: 5, text: "Nothing, zero" },
+      { num: 14, row: 1, col: 9, text: "Old English epic poem hero" },
+      { num: 15, row: 2, col: 0, text: "Adventures of Tom Sawyer author (2 wds)" },
+      { num: 18, row: 3, col: 0, text: "Bored, as a lecture might make you" },
+      { num: 19, row: 3, col: 4, text: "Pen fluid" },
+      { num: 20, row: 3, col: 8, text: "Hamlet's '___ let me be'" },
+      { num: 21, row: 3, col: 12, text: "Harper ___, To Kill a Mockingbird author" },
+      { num: 22, row: 4, col: 3, text: "Angry crowd" },
+      { num: 23, row: 4, col: 7, text: "Animal's lair" },
+      { num: 24, row: 4, col: 11, text: "Brain's domain" },
+      { num: 25, row: 5, col: 0, text: "Ebenezer ___, Dickens character" },
+      { num: 27, row: 5, col: 6, text: "Gatsby's home entrance" },
+      { num: 28, row: 5, col: 10, text: "Narrated, as a story" },
+      { num: 29, row: 6, col: 0, text: "Article in English" },
+      { num: 30, row: 6, col: 5, text: "Pride and Prejudice author (2 wds)" },
+      { num: 32, row: 7, col: 0, text: "Body part for hearing" },
+      { num: 33, row: 7, col: 4, text: "The Three Musketeers author" },
+      { num: 34, row: 7, col: 12, text: "Adam's partner in the garden" },
+      { num: 35, row: 8, col: 0, text: "Twain's Tom Sawyer was a real ___" },
+      { num: 36, row: 8, col: 3, text: "A story's main character" },
+      { num: 37, row: 8, col: 7, text: "Long family story, like the Forsyte ___" },
+      { num: 38, row: 9, col: 2, text: "Dickens' Oliver, e.g. (first name)" },
+      { num: 39, row: 9, col: 6, text: "Mineral deposit" },
+      { num: 40, row: 9, col: 10, text: "Delete, remove" },
+      { num: 41, row: 10, col: 0, text: "___ Dick (Melville novel)" },
+      { num: 42, row: 10, col: 5, text: "Defect, weakness" },
+      { num: 43, row: 10, col: 9, text: "Edgar Allan ___, master of gothic tales" },
+      { num: 44, row: 11, col: 0, text: "Garden of ___" },
+      { num: 45, row: 11, col: 4, text: "Emily ___, Great Expectations character" },
+      { num: 46, row: 11, col: 8, text: "Upper class, refined" },
+      { num: 47, row: 11, col: 13, text: "Pirate's exclamation" },
+      { num: 48, row: 12, col: 0, text: "Fabric pattern, or watery silk" },
+      { num: 49, row: 12, col: 8, text: "Little Women author + possessive" },
+      { num: 50, row: 13, col: 0, text: "Citrus fruit" },
+      { num: 51, row: 13, col: 7, text: "Short fiction work" },
+      { num: 52, row: 13, col: 11, text: "12 o'clock" },
+      { num: 53, row: 14, col: 0, text: "Markets, as books" },
+      { num: 54, row: 14, col: 7, text: "Metal-bearing rock" },
+      { num: 55, row: 14, col: 11, text: "Mail, dispatch" },
+    ],
+    down: [
+      { num: 1, row: 0, col: 0, text: "Story's narrative arc" },
+      { num: 2, row: 0, col: 1, text: "Love, in old poetry" },
+      { num: 3, row: 0, col: 2, text: "One's mental self-portrait" },
+      { num: 4, row: 0, col: 3, text: "Performed, as a play" },
+      { num: 5, row: 0, col: 5, text: "Opposite of always" },
+      { num: 6, row: 0, col: 6, text: "Reference book, briefly" },
+      { num: 7, row: 0, col: 7, text: "Shakespeare's birthplace" },
+      { num: 8, row: 0, col: 9, text: "Beauty and the ___" },
+      { num: 9, row: 0, col: 10, text: "Govern, as a kingdom" },
+      { num: 10, row: 0, col: 14, text: "Conclusion of a story" },
+      { num: 12, row: 1, col: 12, text: "Empty, as blank pages" },
+      { num: 16, row: 2, col: 4, text: "Monarch" },
+      { num: 17, row: 2, col: 8, text: "Story's central notion" },
+      { num: 22, row: 4, col: 3, text: "Fabric or book pattern" },
+      { num: 26, row: 5, col: 1, text: "Printed text from a book" },
+      { num: 31, row: 6, col: 11, text: "Writing pen output" },
+      { num: 33, row: 7, col: 4, text: "Beloved (archaic)" },
+      { num: 36, row: 8, col: 3, text: "Helen of Troy's city" },
+      { num: 41, row: 10, col: 0, text: "Written note" },
+      { num: 44, row: 11, col: 0, text: "Feeling, emotion" },
+      { num: 45, row: 11, col: 4, text: "Mr. Darcy's first name" },
+      { num: 46, row: 11, col: 8, text: "One who reads" },
+    ],
+  },
+};
+
+const classicAdvanced = {
+  id: 'classic-advanced-1',
+  genre: 'Classic Literature',
+  difficulty: 'advanced',
+  grid: GRID_B,
+  answers: [
+    ['Q','U','I','X','O','#','M','A','C','#','R','A','S','H','O'],
+    ['U','N','D','E','R','#','A','L','I','#','E','L','I','O','T'],
+    ['I','C','E','D','T','E','A','R','S','H','E','D','S','N','O'],
+    ['L','O','G','#','S','T','E','R','#','A','R','D','#','C','E'],
+    ['L','I','N','E','#','O','R','#','F','L','A','W','S','#','D'],
+    ['#','#','G','A','S','P','#','P','I','T','#','O','N','#','#'],
+    ['M','A','D','A','M','#','H','A','R','#','T','E','S','S','E'],
+    ['A','L','L','#','O','L','I','V','E','R','#','D','#','H','A'],
+    ['S','E','A','R','S','#','D','E','N','#','O','R','A','L','S'],
+    ['#','#','S','T','#','W','E','N','#','J','O','N','E','S','#'],
+    ['T','A','L','#','E','A','R','#','G','U','T','#','D','E','N'],
+    ['R','I','B','#','T','R','A','G','E','D','Y','#','S','T','O'],
+    ['O','N','E','I','L','L','S','O','N','G','S','A','T','E','V'],
+    ['P','E','R','S','E','#','S','O','N','#','T','L','C','E','E'],
+    ['E','N','D','E','D','#','S','T','E','#','S','E','E','N','S'],
+  ],
+  clues: {
+    across: [
+      { num: 1, row: 0, col: 0, text: "Don ___, Cervantes' tilting knight" },
+      { num: 6, row: 0, col: 6, text: "___ beth, Shakespeare's Scottish king" },
+      { num: 8, row: 0, col: 10, text: "Dostoevsky's Raskolnikov, for one (Japanese film)" },
+      { num: 11, row: 1, col: 0, text: "Below, beneath" },
+      { num: 13, row: 1, col: 6, text: "Muhammad ___" },
+      { num: 14, row: 1, col: 10, text: "George ___, Middlemarch author" },
+      { num: 15, row: 2, col: 0, text: "Cold beverage + wept + heavy precipitation (3 words)" },
+      { num: 18, row: 3, col: 0, text: "Written record" },
+      { num: 19, row: 3, col: 4, text: "Back of a ship" },
+      { num: 20, row: 3, col: 9, text: "Passionate, enthusiastic" },
+      { num: 21, row: 3, col: 13, text: "Once, formerly" },
+      { num: 22, row: 4, col: 0, text: "Verse of poetry" },
+      { num: 23, row: 4, col: 5, text: "Conjunction" },
+      { num: 24, row: 4, col: 8, text: "Imperfections, like a tragic hero's" },
+      { num: 25, row: 5, col: 2, text: "Sharp intake of breath" },
+      { num: 26, row: 5, col: 7, text: "Peach center" },
+      { num: 27, row: 5, col: 11, text: "Preposition of position" },
+      { num: 28, row: 6, col: 0, text: "Title for a Frenchwoman" },
+      { num: 29, row: 6, col: 6, text: "Thomas ___, Tess of the d'Urbervilles author" },
+      { num: 30, row: 6, col: 10, text: "Hardy's tragic heroine" },
+      { num: 31, row: 7, col: 0, text: "Every one" },
+      { num: 32, row: 7, col: 4, text: "Twist of Dickens fame" },
+      { num: 33, row: 7, col: 13, text: "Each" },
+      { num: 34, row: 8, col: 0, text: "Department store chain" },
+      { num: 35, row: 8, col: 6, text: "Fox's home" },
+      { num: 36, row: 8, col: 10, text: "Spoken exams" },
+      { num: 37, row: 9, col: 2, text: "Abbreviation on a tombstone" },
+      { num: 38, row: 9, col: 5, text: "Small growth" },
+      { num: 39, row: 9, col: 9, text: "Tom ___, Fielding's foundling" },
+      { num: 40, row: 10, col: 0, text: "Story, narrative" },
+      { num: 41, row: 10, col: 4, text: "Listening organ" },
+      { num: 42, row: 10, col: 8, text: "Digestive tract" },
+      { num: 43, row: 10, col: 12, text: "Animal's lair" },
+      { num: 44, row: 11, col: 0, text: "Bone in the chest" },
+      { num: 45, row: 11, col: 4, text: "Hamlet and Macbeth are this genre" },
+      { num: 46, row: 11, col: 12, text: "Stove, in Italian" },
+      { num: 47, row: 12, col: 0, text: "Eugene O'___ + musical compositions + eventide (3 parts)" },
+      { num: 50, row: 13, col: 0, text: "Greek hero's wife ___ phone" },
+      { num: 51, row: 13, col: 6, text: "Male offspring" },
+      { num: 52, row: 13, col: 10, text: "Tender loving care" },
+      { num: 53, row: 14, col: 0, text: "Finished, concluded" },
+      { num: 54, row: 14, col: 6, text: "Steinbeck's birthplace city (abbr.)" },
+      { num: 55, row: 14, col: 10, text: "Observed" },
+    ],
+    down: [
+      { num: 1, row: 0, col: 0, text: "Quilt-making art" },
+      { num: 2, row: 0, col: 1, text: "Not limited" },
+      { num: 3, row: 0, col: 2, text: "Charles Dickens' David Copperfield opening ('I am born')" },
+      { num: 4, row: 0, col: 3, text: "X marks the spot" },
+      { num: 5, row: 0, col: 4, text: "Othello's fatal flaw" },
+      { num: 6, row: 0, col: 6, text: "Domestic helper" },
+      { num: 7, row: 0, col: 7, text: "Library fixture" },
+      { num: 8, row: 0, col: 10, text: "To return a book" },
+      { num: 9, row: 0, col: 13, text: "Shakespearean hero" },
+      { num: 10, row: 0, col: 14, text: "Common article" },
+      { num: 12, row: 1, col: 3, text: "Beloved, in poetry" },
+      { num: 16, row: 2, col: 8, text: "Writing instrument" },
+      { num: 17, row: 2, col: 11, text: "Drafts of a novel" },
+      { num: 22, row: 4, col: 0, text: "Not much" },
+      { num: 25, row: 5, col: 2, text: "Stained ___ windows" },
+      { num: 28, row: 6, col: 0, text: "Teacher, instructor" },
+      { num: 29, row: 6, col: 6, text: "Sherlock Holmes' specialty" },
+      { num: 40, row: 10, col: 0, text: "Fictional realm" },
+      { num: 41, row: 10, col: 4, text: "Literary conclusion" },
+      { num: 47, row: 12, col: 0, text: "Upon" },
+      { num: 48, row: 12, col: 7, text: "Musical tone" },
+      { num: 49, row: 12, col: 11, text: "First, in time" },
+    ],
+  },
+};
+
+// ============================================
+// MYSTERY & THRILLER
+// ============================================
+const mysteryBeginner = {
+  id: 'mystery-beginner-1',
+  genre: 'Mystery & Thriller',
+  difficulty: 'beginner',
+  grid: GRID_A,
+  answers: [
+    ['C','L','U','E','#','W','H','O','#','A','G','A','T','H','A'],
+    ['H','I','M','S','#','A','I','R','#','L','U','R','E','O','F'],
+    ['A','N','A','L','I','B','I','N','O','I','R','M','A','N','Y'],
+    ['S','A','P','#','N','O','D','#','S','L','Y','#','D','I','E'],
+    ['#','#','#','G','U','N','#','M','U','T','#','H','I','D','E'],
+    ['N','E','R','O','N','#','S','O','L','#','H','O','L','M','#'],
+    ['I','T','I','S','#','S','P','Y','N','O','V','E','L','S','S'],
+    ['C','O','M','#','P','O','I','S','O','N','S','#','E','T','A'],
+    ['K','S','#','R','E','D','H','E','R','R','I','N','G','#','D'],
+    ['#','#','D','A','G','#','T','H','E','#','D','O','N','E','S'],
+    ['P','A','G','E','#','A','R','C','#','P','O','E','#','#','#'],
+    ['A','T','A','#','T','R','A','I','L','E','D','#','C','O','P'],
+    ['T','I','L','L','A','C','K','#','O','R','I','E','N','T','S'],
+    ['H','M','S','E','L','F','#','C','R','I','#','L','O','N','E'],
+    ['S','E','E','D','S','S','#','L','I','E','#','E','N','D','S'],
+  ],
+  clues: {
+    across: [
+      { num: 1, row: 0, col: 0, text: "Board game about solving a murder" },
+      { num: 5, row: 0, col: 5, text: "___dunit (mystery genre)" },
+      { num: 8, row: 0, col: 9, text: "___ Christie, Queen of Mystery" },
+      { num: 11, row: 1, col: 0, text: "Pronoun for a male suspect" },
+      { num: 13, row: 1, col: 5, text: "It can be thin at crime scenes" },
+      { num: 14, row: 1, col: 9, text: "Bait that draws someone in" },
+      { num: 15, row: 2, col: 0, text: "A suspect's defense + dark crime genre + plenty (3 words)" },
+      { num: 18, row: 3, col: 0, text: "Tree fluid, or to weaken" },
+      { num: 19, row: 3, col: 4, text: "Gesture of agreement" },
+      { num: 20, row: 3, col: 8, text: "Cunning, like a fox" },
+      { num: 21, row: 3, col: 12, text: "Expire" },
+      { num: 22, row: 4, col: 3, text: "Weapon in many thrillers" },
+      { num: 23, row: 4, col: 7, text: "Dog or cat, mixed breed" },
+      { num: 24, row: 4, col: 11, text: "Conceal evidence" },
+      { num: 25, row: 5, col: 0, text: "___ Wolfe, Rex Stout's detective" },
+      { num: 27, row: 5, col: 6, text: "Answered, as a mystery" },
+      { num: 28, row: 5, col: 10, text: "Sherlock ___" },
+      { num: 29, row: 6, col: 0, text: "'___ a truth universally acknowledged'" },
+      { num: 30, row: 6, col: 5, text: "Le Carré wrote these espionage books (2 words)" },
+      { num: 32, row: 7, col: 0, text: "Intercom sound" },
+      { num: 33, row: 7, col: 4, text: "Murder weapons in Agatha Christie novels" },
+      { num: 34, row: 7, col: 12, text: "Arrival time abbr." },
+      { num: 35, row: 8, col: 0, text: "Pet name" },
+      { num: 36, row: 8, col: 3, text: "Misleading clue in a mystery (2 words)" },
+      { num: 37, row: 9, col: 2, text: "Short for dagger" },
+      { num: 38, row: 9, col: 6, text: "Article" },
+      { num: 39, row: 9, col: 10, text: "Finished ones" },
+      { num: 40, row: 10, col: 0, text: "Book leaf" },
+      { num: 41, row: 10, col: 5, text: "Story ___ (narrative curve)" },
+      { num: 42, row: 10, col: 9, text: "Edgar Allan ___" },
+      { num: 43, row: 11, col: 0, text: "Estimated time of arrival" },
+      { num: 44, row: 11, col: 4, text: "Followed, as a suspect" },
+      { num: 45, row: 11, col: 12, text: "Police officer, informally" },
+      { num: 46, row: 12, col: 0, text: "Hercule Poirot explores all (2 words + name)" },
+      { num: 48, row: 12, col: 8, text: "Gets one's bearings" },
+      { num: 49, row: 13, col: 0, text: "Her Majesty's Ship" },
+      { num: 50, row: 13, col: 7, text: "Crime, informally" },
+      { num: 51, row: 13, col: 11, text: "Solo, solitary" },
+      { num: 52, row: 14, col: 0, text: "Beginnings, origins" },
+      { num: 53, row: 14, col: 7, text: "Falsehood" },
+      { num: 54, row: 14, col: 11, text: "Conclusions" },
+    ],
+    down: [
+      { num: 1, row: 0, col: 0, text: "Pursuit, as in a thriller" },
+      { num: 2, row: 0, col: 1, text: "Boundary, edge" },
+      { num: 3, row: 0, col: 2, text: "Employ" },
+      { num: 4, row: 0, col: 3, text: "Overheard, as a conversation" },
+      { num: 5, row: 0, col: 5, text: "Wander about" },
+      { num: 6, row: 0, col: 6, text: "Concealed, as a motive" },
+      { num: 7, row: 0, col: 7, text: "Direct, command" },
+      { num: 8, row: 0, col: 9, text: "Alibis prove you were ___" },
+      { num: 9, row: 0, col: 10, text: "Good vs. evil theme" },
+      { num: 10, row: 0, col: 14, text: "Post-crime scene tape color" },
+      { num: 12, row: 1, col: 12, text: "Accomplishment" },
+      { num: 16, row: 2, col: 4, text: "Author Grafton of the alphabet mysteries" },
+      { num: 17, row: 2, col: 8, text: "Sneak about" },
+      { num: 22, row: 4, col: 3, text: "Ghost" },
+      { num: 26, row: 5, col: 1, text: "Whodunit's answer" },
+      { num: 31, row: 6, col: 11, text: "Watching, as a suspect" },
+      { num: 33, row: 7, col: 4, text: "Printing machine" },
+      { num: 36, row: 8, col: 3, text: "Rule, govern" },
+      { num: 40, row: 10, col: 0, text: "Route, course" },
+      { num: 43, row: 11, col: 0, text: "One, in Italian" },
+      { num: 44, row: 11, col: 4, text: "Bravery" },
+      { num: 45, row: 11, col: 12, text: "Chestnut or oak" },
+    ],
+  },
+};
+
+const mysteryAdvanced = {
+  ...mysteryBeginner,
+  id: 'mystery-advanced-1',
+  difficulty: 'advanced',
+  clues: {
+    across: [
+      { num: 1, row: 0, col: 0, text: "Parker Brothers' accusatory board game" },
+      { num: 5, row: 0, col: 5, text: "Pronoun starting many a detective query" },
+      { num: 8, row: 0, col: 9, text: "Christie who created Poirot and Marple" },
+      { num: 11, row: 1, col: 0, text: "Objective pronoun" },
+      { num: 13, row: 1, col: 5, text: "Invisible element at every crime scene" },
+      { num: 14, row: 1, col: 9, text: "What a femme fatale provides" },
+      { num: 15, row: 2, col: 0, text: "Suspect's proof of innocence + hardboiled genre + not few" },
+      { num: 18, row: 3, col: 0, text: "Undermine gradually" },
+      { num: 19, row: 3, col: 4, text: "Silent assent from an informant" },
+      { num: 20, row: 3, col: 8, text: "Stallone nickname, or crafty" },
+      { num: 21, row: 3, col: 12, text: "What villains do, dramatically" },
+      { num: 22, row: 4, col: 3, text: "Chekhov's principle: if shown in Act 1..." },
+      { num: 23, row: 4, col: 7, text: "Mixed-breed, or rebel" },
+      { num: 24, row: 4, col: 11, text: "What witnesses do with evidence" },
+      { num: 25, row: 5, col: 0, text: "___ Wolfe, orchid-loving armchair detective" },
+      { num: 27, row: 5, col: 6, text: "Cracked, as a case" },
+      { num: 28, row: 5, col: 10, text: "221B Baker Street resident" },
+      { num: 29, row: 6, col: 0, text: "Contraction of identification" },
+      { num: 30, row: 6, col: 5, text: "Cold War fiction genre (2 wds)" },
+      { num: 32, row: 7, col: 0, text: "Short-range radio" },
+      { num: 33, row: 7, col: 4, text: "Agatha Christie's preferred murder method, often" },
+      { num: 34, row: 7, col: 12, text: "Flight board abbr." },
+      { num: 35, row: 8, col: 0, text: "Familiar moniker" },
+      { num: 36, row: 8, col: 3, text: "A false lead meant to mislead the reader" },
+      { num: 37, row: 9, col: 2, text: "Blade, slangily" },
+      { num: 38, row: 9, col: 6, text: "Definite article" },
+      { num: 39, row: 9, col: 10, text: "Completed, as cases" },
+      { num: 40, row: 10, col: 0, text: "Turner, as in pages" },
+      { num: 41, row: 10, col: 5, text: "Narrative ___ (story shape)" },
+      { num: 42, row: 10, col: 9, text: "Murders in the Rue Morgue author" },
+      { num: 43, row: 11, col: 0, text: "'At this point' in a timeline" },
+      { num: 44, row: 11, col: 4, text: "Shadowed" },
+      { num: 45, row: 11, col: 12, text: "Slang for detective" },
+      { num: 46, row: 12, col: 0, text: "Belgian sleuth's method + travel book (2 parts)" },
+      { num: 48, row: 12, col: 8, text: "Adjusts to surroundings" },
+      { num: 49, row: 13, col: 0, text: "Abbreviation on a naval vessel" },
+      { num: 50, row: 13, col: 7, text: "___me fiction (subgenre)" },
+      { num: 51, row: 13, col: 11, text: "A wolf, in mystery terms" },
+      { num: 52, row: 14, col: 0, text: "Planted clues" },
+      { num: 53, row: 14, col: 7, text: "What unreliable narrators do" },
+      { num: 54, row: 14, col: 11, text: "Denouements" },
+    ],
+    down: mysteryBeginner.clues.down.map(c => ({...c})),
+  },
+};
+
+// ============================================
+// POETRY
+// ============================================
+const poetryBeginner = {
+  id: 'poetry-beginner-1',
+  genre: 'Poetry',
+  difficulty: 'beginner',
+  grid: GRID_B,
+  answers: [
+    ['H','A','I','K','U','#','O','D','E','#','R','H','Y','M','E'],
+    ['A','L','L','O','T','#','P','E','N','#','E','A','R','T','H'],
+    ['M','I','R','A','S','O','N','N','E','T','S','R','E','A','D'],
+    ['L','O','N','#','G','R','I','M','#','O','N','E','#','A','D'],
+    ['E','L','E','G','#','I','N','#','L','I','M','E','R','#','S'],
+    ['#','#','E','R','A','S','#','B','A','R','#','V','E','#','#'],
+    ['S','T','A','N','Z','#','A','L','L','#','W','A','L','D','O'],
+    ['L','I','T','#','A','U','D','E','N','T','O','L','D','#','O'],
+    ['A','N','T','I','C','#','R','E','S','T','#','U','N','I','T'],
+    ['#','#','E','N','D','S','#','E','D','#','A','E','S','O','#'],
+    ['B','U','R','#','S','I','N','#','I','L','L','#','E','L','F'],
+    ['A','L','L','#','P','R','O','S','E','O','F','L','I','F','E'],
+    ['L','U','L','L','A','B','Y','T','W','O','R','D','S','T','O'],
+    ['L','I','N','E','S','#','M','O','N','#','E','E','L','S','S'],
+    ['A','D','D','E','D','#','S','E','T','#','S','O','L','E','S'],
+  ],
+  clues: {
+    across: [
+      { num: 1, row: 0, col: 0, text: "Japanese poem of 5-7-5 syllables" },
+      { num: 6, row: 0, col: 6, text: "Keats wrote several of this lyric form" },
+      { num: 8, row: 0, col: 10, text: "Matching end sounds in verse" },
+      { num: 11, row: 1, col: 0, text: "To assign or distribute" },
+      { num: 13, row: 1, col: 6, text: "A poet's writing tool" },
+      { num: 14, row: 1, col: 10, text: "Planet or soil" },
+      { num: 15, row: 2, col: 0, text: "Wonder + Shakespeare's 14-liners + recite aloud" },
+      { num: 18, row: 3, col: 0, text: "Solitary, like Frost's traveler" },
+      { num: 19, row: 3, col: 4, text: "Dark and foreboding" },
+      { num: 20, row: 3, col: 9, text: "The loneliest number" },
+      { num: 21, row: 3, col: 13, text: "Short advertisement" },
+      { num: 22, row: 4, col: 0, text: "Mournful poem for the dead" },
+      { num: 23, row: 4, col: 5, text: "Within, inside" },
+      { num: 24, row: 4, col: 8, text: "Humorous five-line verse" },
+      { num: 25, row: 5, col: 2, text: "Time period" },
+      { num: 26, row: 5, col: 7, text: "Saloon or poetry reading venue" },
+      { num: 27, row: 5, col: 11, text: "Evening, poetically" },
+      { num: 28, row: 6, col: 0, text: "Group of lines in a poem" },
+      { num: 29, row: 6, col: 6, text: "Every single one" },
+      { num: 30, row: 6, col: 10, text: "Where's ___? (hidden character)" },
+      { num: 31, row: 7, col: 0, text: "Literature, for short" },
+      { num: 32, row: 7, col: 4, text: "W.H. ___, poet of 'Funeral Blues'" },
+      { num: 33, row: 7, col: 13, text: "The letter O" },
+      { num: 34, row: 8, col: 0, text: "Playful, silly" },
+      { num: 35, row: 8, col: 6, text: "Pause, take a break" },
+      { num: 36, row: 8, col: 10, text: "A single measure of verse" },
+      { num: 37, row: 9, col: 2, text: "Conclusions, finales" },
+      { num: 38, row: 9, col: 5, text: "Revised, as a poem" },
+      { num: 39, row: 9, col: 10, text: "Greek fabulist" },
+      { num: 40, row: 10, col: 0, text: "Short for burial" },
+      { num: 41, row: 10, col: 4, text: "Transgression" },
+      { num: 42, row: 10, col: 8, text: "Unwell" },
+      { num: 43, row: 10, col: 12, text: "Mythical small creature" },
+      { num: 44, row: 11, col: 0, text: "Every" },
+      { num: 45, row: 11, col: 4, text: "Non-verse writing + everyday existence (3 wds)" },
+      { num: 46, row: 12, col: 0, text: "Bedtime song + a pair of utterances (3 wds)" },
+      { num: 49, row: 13, col: 0, text: "Verses of poetry" },
+      { num: 50, row: 13, col: 6, text: "Jamaican music genre, briefly" },
+      { num: 51, row: 13, col: 10, text: "Slippery fish, plural" },
+      { num: 52, row: 14, col: 0, text: "Included, summed" },
+      { num: 53, row: 14, col: 6, text: "Fixed, arranged" },
+      { num: 54, row: 14, col: 10, text: "Bottoms of shoes" },
+    ],
+    down: [
+      { num: 1, row: 0, col: 0, text: "Shakespeare's Hamlet, for one" },
+      { num: 2, row: 0, col: 1, text: "Boundary, edge" },
+      { num: 3, row: 0, col: 2, text: "Short for irregular" },
+      { num: 4, row: 0, col: 3, text: "Twain's initials, or a question" },
+      { num: 5, row: 0, col: 4, text: "Employ, put to work" },
+      { num: 6, row: 0, col: 6, text: "Viewpoint, or visual art" },
+      { num: 7, row: 0, col: 7, text: "Beloved, in old verse" },
+      { num: 8, row: 0, col: 10, text: "Robert Frost's 'The ___ Not Taken'" },
+      { num: 9, row: 0, col: 13, text: "Teacher's pet" },
+      { num: 10, row: 0, col: 14, text: "Conclusion" },
+      { num: 12, row: 1, col: 3, text: "Not against" },
+      { num: 16, row: 2, col: 8, text: "Poetic contraction of 'even'" },
+      { num: 17, row: 2, col: 11, text: "Alter, as text" },
+      { num: 22, row: 4, col: 0, text: "Finished" },
+      { num: 25, row: 5, col: 2, text: "Long-form prose narrative" },
+      { num: 28, row: 6, col: 0, text: "Smooth, in music" },
+      { num: 29, row: 6, col: 6, text: "Sums" },
+      { num: 39, row: 9, col: 10, text: "Nimble" },
+      { num: 40, row: 10, col: 0, text: "Dance party" },
+      { num: 41, row: 10, col: 4, text: "Spins" },
+      { num: 47, row: 12, col: 7, text: "Coffee order" },
+      { num: 48, row: 12, col: 11, text: "Sleek" },
+    ],
+  },
+};
+
+const poetryAdvanced = {
+  ...poetryBeginner,
+  id: 'poetry-advanced-1',
+  difficulty: 'advanced',
+  clues: {
+    across: [
+      { num: 1, row: 0, col: 0, text: "Basho mastered this unrhymed Japanese form" },
+      { num: 6, row: 0, col: 6, text: "Horatian or Pindaric lyric poem" },
+      { num: 8, row: 0, col: 10, text: "Scheme that can be ABAB or ABBA" },
+      { num: 11, row: 1, col: 0, text: "Distribute shares" },
+      { num: 13, row: 1, col: 6, text: "Instrument mightier than the sword" },
+      { num: 14, row: 1, col: 10, text: "Whitman heard America singing on this" },
+      { num: 15, row: 2, col: 0, text: "Astonishment + Petrarchan forms + performed aloud" },
+      { num: 18, row: 3, col: 0, text: "Solitary, as Wordsworth's reaper" },
+      { num: 19, row: 3, col: 4, text: "Brothers who collected dark fairy tales" },
+      { num: 20, row: 3, col: 9, text: "Dickinson's 'I'm Nobody! Who are you? / Are you Nobody, too?' speaker count" },
+      { num: 21, row: 3, col: 13, text: "Brief notice" },
+      { num: 22, row: 4, col: 0, text: "Milton's 'Lycidas' is one of these mournful poems" },
+      { num: 23, row: 4, col: 5, text: "Preposition of containment" },
+      { num: 24, row: 4, col: 8, text: "Edward Lear's humorous five-line form" },
+      { num: 25, row: 5, col: 2, text: "Romantic ___ or Victorian ___" },
+      { num: 26, row: 5, col: 7, text: "Where Beat poets read aloud" },
+      { num: 27, row: 5, col: 11, text: "'Even' contracted poetically" },
+      { num: 28, row: 6, col: 0, text: "Spenserian or Shakespearean structural unit" },
+      { num: 29, row: 6, col: 6, text: "Whitman's 'I contain multitudes' implies this scope" },
+      { num: 30, row: 6, col: 10, text: "Emerson's transcendental pen name, almost" },
+      { num: 31, row: 7, col: 0, text: "Abbreviation for literary studies" },
+      { num: 32, row: 7, col: 4, text: "Poet who wrote 'September 1, 1939'" },
+      { num: 33, row: 7, col: 13, text: "Circular vowel" },
+      { num: 34, row: 8, col: 0, text: "Mischievous, like Puck" },
+      { num: 35, row: 8, col: 6, text: "Caesura provides this in a line" },
+      { num: 36, row: 8, col: 10, text: "Metrical ___ (iamb, trochee, etc.)" },
+      { num: 37, row: 9, col: 2, text: "Terminal points of run-on lines" },
+      { num: 38, row: 9, col: 5, text: "Revised, as manuscript" },
+      { num: 39, row: 9, col: 10, text: "Whose fables were versified by La Fontaine" },
+      { num: 40, row: 10, col: 0, text: "Interment" },
+      { num: 41, row: 10, col: 4, text: "What Milton's Satan embraces" },
+      { num: 42, row: 10, col: 8, text: "Plath's 'Lady Lazarus' speaker's state" },
+      { num: 43, row: 10, col: 12, text: "Tolkien's tiny being" },
+      { num: 44, row: 11, col: 0, text: "Complete, total" },
+      { num: 45, row: 11, col: 4, text: "Wordsworth's pedestrian speech + living (3 wds)" },
+      { num: 46, row: 12, col: 0, text: "Nocturnal verse form + duo + spoken addresses (3 wds)" },
+      { num: 49, row: 13, col: 0, text: "Enjambed units of verse" },
+      { num: 50, row: 13, col: 6, text: "Musical ___ (a verse set to music)" },
+      { num: 51, row: 13, col: 10, text: "Serpentine fish" },
+      { num: 52, row: 14, col: 0, text: "Contributed" },
+      { num: 53, row: 14, col: 6, text: "Arranged in verse form" },
+      { num: 54, row: 14, col: 10, text: "Feet, in anatomy" },
+    ],
+    down: poetryBeginner.clues.down.map(c => ({...c})),
+  },
+};
+
+// ============================================
+// ROMANCE
+// ============================================
+const romanceBeginner = {
+  id: 'romance-beginner-1',
+  genre: 'Romance',
+  difficulty: 'beginner',
+  grid: GRID_A,
+  answers: [
+    ['L','O','V','E','#','D','A','R','#','P','R','I','D','E','S'],
+    ['O','N','E','S','#','A','N','E','#','R','O','S','E','R','Y'],
+    ['R','E','S','T','R','I','C','T','H','E','A','R','T','B','E'],
+    ['D','E','S','#','I','L','L','#','S','E','N','S','E','A','T'],
+    ['#','#','#','W','I','S','#','P','A','S','#','W','I','S','H'],
+    ['M','A','T','E','S','#','D','U','K','E','S','O','U','L','#'],
+    ['A','P','E','X','#','P','L','O','T','A','L','O','N','E','S'],
+    ['R','A','N','#','D','E','A','R','E','S','T','#','I','N','A'],
+    ['C','H','#','B','A','L','L','#','H','O','O','K','#','C','E'],
+    ['#','#','V','O','W','#','F','I','N','#','R','E','A','L','S'],
+    ['H','E','R','O','#','A','L','A','#','T','A','N','#','#','#'],
+    ['A','M','I','#','C','H','A','R','M','E','D','#','A','G','E'],
+    ['P','A','L','L','I','N','L','O','V','E','P','E','N','N','Y'],
+    ['P','E','N','D','N','G','#','D','O','V','#','P','E','A','R'],
+    ['Y','E','S','S','S','S','#','Y','E','S','#','E','S','S','E'],
+  ],
+  clues: {
+    across: [
+      { num: 1, row: 0, col: 0, text: "The central theme of every romance novel" },
+      { num: 5, row: 0, col: 5, text: "Mr. ___, Bridget Jones' love interest" },
+      { num: 8, row: 0, col: 9, text: "___ and Prejudice" },
+      { num: 11, row: 1, col: 0, text: "Beloved ___" },
+      { num: 13, row: 1, col: 5, text: "Close to (archaic)" },
+      { num: 14, row: 1, col: 9, text: "Symbol of love, the ___ garden" },
+      { num: 15, row: 2, col: 0, text: "Hold back + the emotional core + exist (3 words)" },
+      { num: 18, row: 3, col: 0, text: "Writing tables" },
+      { num: 19, row: 3, col: 4, text: "Sick, unwell" },
+      { num: 20, row: 3, col: 8, text: "___ and Sensibility" },
+      { num: 22, row: 4, col: 3, text: "Clever, perceptive" },
+      { num: 23, row: 4, col: 7, text: "Romantic feeling" },
+      { num: 24, row: 4, col: 11, text: "Heart's desire" },
+      { num: 25, row: 5, col: 0, text: "Partners, soul___" },
+      { num: 27, row: 5, col: 6, text: "___ of hazard (noble title + spirit)" },
+      { num: 29, row: 6, col: 0, text: "Peak, summit" },
+      { num: 30, row: 6, col: 5, text: "Story outline + solitary ones" },
+      { num: 32, row: 7, col: 0, text: "Sprinted" },
+      { num: 33, row: 7, col: 4, text: "Most beloved" },
+      { num: 34, row: 7, col: 12, text: "___ moment" },
+      { num: 35, row: 8, col: 0, text: "Jane Austen's home county" },
+      { num: 36, row: 8, col: 3, text: "Cinderella went to one" },
+      { num: 37, row: 8, col: 7, text: "What catches a reader" },
+      { num: 38, row: 9, col: 2, text: "Marriage promise" },
+      { num: 39, row: 9, col: 6, text: "End, conclusion" },
+      { num: 40, row: 9, col: 10, text: "Genuine ones" },
+      { num: 41, row: 10, col: 0, text: "Leading man" },
+      { num: 42, row: 10, col: 5, text: "Unfortunately" },
+      { num: 43, row: 10, col: 9, text: "Brown from the sun" },
+      { num: 44, row: 11, col: 0, text: "French for friend" },
+      { num: 45, row: 11, col: 4, text: "Delighted, enchanted" },
+      { num: 46, row: 11, col: 12, text: "Era of time" },
+      { num: 47, row: 12, col: 0, text: "Friend + smitten + small coin (3 parts)" },
+      { num: 49, row: 13, col: 0, text: "Awaiting, not yet resolved" },
+      { num: 50, row: 13, col: 7, text: "Symbol of peace" },
+      { num: 51, row: 13, col: 11, text: "Fruit or body shape" },
+      { num: 52, row: 14, col: 0, text: "Enthusiastic affirmative repeated" },
+      { num: 53, row: 14, col: 7, text: "Affirmative!" },
+      { num: 54, row: 14, col: 11, text: "Being, existence" },
+    ],
+    down: [
+      { num: 1, row: 0, col: 0, text: "Titled nobleman" },
+      { num: 2, row: 0, col: 1, text: "One who is betrothed" },
+      { num: 3, row: 0, col: 2, text: "Wicked, morally bad" },
+      { num: 4, row: 0, col: 3, text: "Heavenly body, like eyes" },
+      { num: 5, row: 0, col: 5, text: "Illness" },
+      { num: 6, row: 0, col: 6, text: "Historical period" },
+      { num: 7, row: 0, col: 7, text: "Peruse, as a romance" },
+      { num: 8, row: 0, col: 9, text: "Printed media" },
+      { num: 9, row: 0, col: 10, text: "Flower of love" },
+      { num: 10, row: 0, col: 14, text: "Writing tool" },
+      { num: 12, row: 1, col: 12, text: "Conclusion" },
+      { num: 16, row: 2, col: 4, text: "Embrace warmly" },
+      { num: 17, row: 2, col: 8, text: "Bliss, happiness" },
+      { num: 22, row: 4, col: 3, text: "Marry" },
+      { num: 26, row: 5, col: 1, text: "Piece of paper" },
+      { num: 28, row: 5, col: 11, text: "Vow" },
+      { num: 31, row: 6, col: 11, text: "Well-known" },
+      { num: 33, row: 7, col: 4, text: "Journeyed" },
+      { num: 36, row: 8, col: 3, text: "Prohibition" },
+      { num: 41, row: 10, col: 0, text: "Pleased" },
+      { num: 44, row: 11, col: 0, text: "Fruit" },
+      { num: 45, row: 11, col: 4, text: "Selected" },
+    ],
+  },
+};
+
+const romanceAdvanced = {
+  ...romanceBeginner,
+  id: 'romance-advanced-1',
+  difficulty: 'advanced',
+};
+
+// ============================================
+// INDIAN LITERATURE & EPICS
+// ============================================
+const indianBeginner = {
+  id: 'indian-beginner-1',
+  genre: 'Indian Literature & Epics',
+  difficulty: 'beginner',
+  grid: GRID_B,
+  answers: [
+    ['R','A','M','A','S','#','S','I','T','#','K','A','R','N','A'],
+    ['A','R','J','U','N','#','H','A','N','#','R','I','S','H','I'],
+    ['V','A','N','A','R','A','M','A','Y','A','N','A','E','E','R'],
+    ['A','N','E','#','N','A','L','A','#','G','O','D','#','D','A'],
+    ['N','O','S','E','#','S','A','#','D','H','A','R','M','#','G'],
+    ['#','#','T','A','L','E','#','B','O','W','#','A','V','#','#'],
+    ['M','A','N','T','R','#','D','R','O','N','A','M','A','L','A'],
+    ['A','R','E','#','U','R','A','N','G','E','L','A','#','A','P'],
+    ['Y','A','M','A','S','#','V','E','D','A','S','#','G','I','T'],
+    ['#','#','A','G','E','D','#','A','S','#','K','A','L','I','#'],
+    ['V','E','D','#','R','U','L','#','A','L','A','#','T','E','A'],
+    ['I','D','A','#','A','R','E','N','A','K','S','H','A','R','A'],
+    ['S','H','A','K','U','N','T','A','L','A','H','E','R','O','S'],
+    ['H','O','L','E','S','#','H','O','M','#','I','R','O','N','Y'],
+    ['N','A','L','A','S','#','S','A','G','#','V','A','N','E','S'],
+  ],
+  clues: {
+    across: [
+      { num: 1, row: 0, col: 0, text: "Lord ___, hero of the Ramayana" },
+      { num: 6, row: 0, col: 6, text: "Rama's devoted wife, ___ Devi" },
+      { num: 8, row: 0, col: 10, text: "Tragic hero of Mahabharata, son of Surya" },
+      { num: 11, row: 1, col: 0, text: "Pandava prince, the great archer" },
+      { num: 13, row: 1, col: 6, text: "Monkey god, Rama's devotee" },
+      { num: 14, row: 1, col: 10, text: "Sage, holy person in Sanskrit" },
+      { num: 15, row: 2, col: 0, text: "Forest + Valmiki's epic + seer (3 parts)" },
+      { num: 18, row: 3, col: 0, text: "Single, one" },
+      { num: 19, row: 3, col: 4, text: "King in the Mahabharata, Damayanti's husband" },
+      { num: 20, row: 3, col: 9, text: "Divine being" },
+      { num: 21, row: 3, col: 13, text: "Furious" },
+      { num: 22, row: 4, col: 0, text: "Facial feature Ganesha is known for (trunk)" },
+      { num: 23, row: 4, col: 5, text: "Musical note" },
+      { num: 24, row: 4, col: 8, text: "Righteous duty in Hinduism" },
+      { num: 25, row: 5, col: 2, text: "Story, narrative" },
+      { num: 26, row: 5, col: 7, text: "Weapon Arjuna excelled with" },
+      { num: 27, row: 5, col: 11, text: "Short for avatar" },
+      { num: 28, row: 6, col: 0, text: "Sacred chant" },
+      { num: 29, row: 6, col: 6, text: "Guru of the Kauravas" },
+      { num: 30, row: 6, col: 10, text: "Garland, as offered in temples" },
+      { num: 31, row: 7, col: 0, text: "Exist (plural)" },
+      { num: 32, row: 7, col: 4, text: "Mughal emperor + divine being (combined)" },
+      { num: 33, row: 7, col: 13, text: "Monkey, or simian" },
+      { num: 34, row: 8, col: 0, text: "Ethical restraints in yoga" },
+      { num: 35, row: 8, col: 6, text: "Ancient Hindu scriptures" },
+      { num: 36, row: 8, col: 12, text: "Bhagavad ___" },
+      { num: 37, row: 9, col: 2, text: "Old, mature" },
+      { num: 38, row: 9, col: 5, text: "Like, similar to" },
+      { num: 39, row: 9, col: 10, text: "Dark goddess, or current age" },
+      { num: 40, row: 10, col: 0, text: "Abbreviation for Vedic" },
+      { num: 41, row: 10, col: 4, text: "Govern" },
+      { num: 42, row: 10, col: 8, text: "Name, or an epithet" },
+      { num: 43, row: 10, col: 12, text: "Chai beverage" },
+      { num: 44, row: 11, col: 0, text: "Mountain range in India" },
+      { num: 45, row: 11, col: 4, text: "Battle ground + imperishable (2 parts)" },
+      { num: 46, row: 12, col: 0, text: "Kalidasa's heroine + brave ones (2 parts)" },
+      { num: 49, row: 13, col: 0, text: "Openings, gaps" },
+      { num: 50, row: 13, col: 6, text: "Dwelling place" },
+      { num: 51, row: 13, col: 10, text: "Sarcasm, dramatic twist" },
+      { num: 52, row: 14, col: 0, text: "King Nala, pluralized" },
+      { num: 53, row: 14, col: 6, text: "Wise person" },
+      { num: 54, row: 14, col: 10, text: "Weather indicators" },
+    ],
+    down: [
+      { num: 1, row: 0, col: 0, text: "Demon king of Lanka" },
+      { num: 2, row: 0, col: 1, text: "Region, zone" },
+      { num: 3, row: 0, col: 2, text: "Illusion in Sanskrit" },
+      { num: 4, row: 0, col: 3, text: "Celestial nymph" },
+      { num: 5, row: 0, col: 4, text: "Respectful Indian greeting" },
+      { num: 6, row: 0, col: 6, text: "Shiva, the auspicious one" },
+      { num: 7, row: 0, col: 7, text: "Questioning" },
+      { num: 8, row: 0, col: 10, text: "Noble, as in Arya" },
+      { num: 9, row: 0, col: 13, text: "Not old" },
+      { num: 10, row: 0, col: 14, text: "Sanskrit for self/soul" },
+      { num: 12, row: 1, col: 3, text: "Unity, togetherness" },
+      { num: 16, row: 2, col: 8, text: "Path of devotion" },
+      { num: 17, row: 2, col: 11, text: "Dramatic art form" },
+      { num: 22, row: 4, col: 0, text: "Sleep, rest" },
+      { num: 25, row: 5, col: 2, text: "Narrative, epic" },
+      { num: 28, row: 6, col: 0, text: "Great, as in Mahabharata" },
+      { num: 29, row: 6, col: 6, text: "Spiritual teacher" },
+      { num: 39, row: 9, col: 10, text: "Understanding, knowledge" },
+      { num: 40, row: 10, col: 0, text: "Vishnu's forms" },
+      { num: 41, row: 10, col: 4, text: "Sovereign" },
+      { num: 47, row: 12, col: 7, text: "Respectful address" },
+      { num: 48, row: 12, col: 11, text: "Time period" },
+    ],
+  },
+};
+
+const indianAdvanced = {
+  ...indianBeginner,
+  id: 'indian-advanced-1',
+  difficulty: 'advanced',
+};
+
+// ============================================
+// SURPRISE (Literary Medley)
+// ============================================
+const surpriseBeginner = {
+  ...classicBeginner,
+  id: 'surprise-beginner-1',
+  genre: 'Surprise Me!',
+  difficulty: 'beginner',
+};
+
+const surpriseAdvanced = {
+  ...mysteryAdvanced,
+  id: 'surprise-advanced-1',
+  genre: 'Surprise Me!',
+  difficulty: 'advanced',
+};
+
+// ============================================
+// PUZZLE BANK EXPORT
+// ============================================
+export const puzzleBank = [
+  classicBeginner,
+  classicAdvanced,
+  mysteryBeginner,
+  mysteryAdvanced,
+  poetryBeginner,
+  poetryAdvanced,
+  romanceBeginner,
+  romanceAdvanced,
+  indianBeginner,
+  indianAdvanced,
+  surpriseBeginner,
+  surpriseAdvanced,
+];
+
+export function getPuzzle(genre, difficulty) {
+  // Replace '#' with '.' in answers for consistency
+  const puzzle = puzzleBank.find(
+    p => p.genre === genre && p.difficulty === difficulty
+  );
+  if (!puzzle) return null;
+
+  // Normalize answers: replace # with .
+  const normalizedAnswers = puzzle.answers.map(row =>
+    row.map(cell => cell === '#' ? '.' : cell)
+  );
+
+  return { ...puzzle, answers: normalizedAnswers };
+}
+
+export const GENRES = [
+  { name: 'Classic Literature', description: 'Timeless tales & their creators', color: 'lavender' },
+  { name: 'Mystery & Thriller', description: 'Whodunits, noir & suspense', color: 'sage' },
+  { name: 'Poetry', description: 'Verses, sonnets & spoken word', color: 'blush' },
+  { name: 'Romance', description: 'Love stories & happily ever afters', color: 'gold' },
+  { name: 'Indian Literature & Epics', description: 'Ramayana, Mahabharata & more', color: 'sage' },
+];
+
+export const QUOTES = [
+  { text: "A reader lives a thousand lives before he dies.", author: "George R.R. Martin" },
+  { text: "There is no friend as loyal as a book.", author: "Ernest Hemingway" },
+  { text: "One must always be careful of books and what is inside them.", author: "Cassandra Clare" },
+  { text: "Books are a uniquely portable magic.", author: "Stephen King" },
+  { text: "Reading is dreaming with open eyes.", author: "Anissa Trisdianty" },
+  { text: "A book is a dream that you hold in your hand.", author: "Neil Gaiman" },
+  { text: "Words are our most inexhaustible source of magic.", author: "J.K. Rowling" },
+];
